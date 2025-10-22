@@ -1,19 +1,33 @@
-# next-template
+# Codemod take-home exercise
 
-A Next.js 13 template for building apps with ShadcnUI and Tailwind CSS.
+**Live preview:** [https://jameslewis-take-home.vercel.app](https://jameslewis-take-home.vercel.app)  
+**Repo:** [https://github.com/jamesplewis/take-home](https://github.com/jamesplewis/take-home)
 
-## Usage
+---
 
-```bash
-npx create-next-app -e https://github.com/andonealessandro/start-nextjs-shadcn-ui.git
+## What this implements
+
+- A landing page with a textarea where users can enter a prompt describing what they want to build.
+- On submission, a transition animation plays while the next view loads.
+- The page then scrolls into a two-panel layout:
+  - **Left:** chat interface
+  - **Right:** live preview of the psuedo-generated website.
+
+---
+
+## Stack
+
+- **Framework:** Next.js (App Router)
+- **Styling:** Tailwind CSS
+- **Animation:** motion/react
+- **Hosting:** Vercel
+- Based on the starter project provided in the brief (StackBlitz).
+
+---
+
+## Running locally
+
 ```
-
-## Features
-
-- Next.js 13 App Directory
-- Radix UI Primitives
-- Tailwind CSS
-- Icons from [Lucide](https://lucide.dev)
-- Dark mode with `next-themes`
-- Tailwind CSS class sorting, merging and linting.
-- Custom Tailwind CSS file
+npm install
+npm run dev
+```
