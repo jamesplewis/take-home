@@ -1,6 +1,20 @@
 "use client"
 
+/**
+ * DEVELOPMENT MODE INSTRUCTIONS:
+ * ===============================
+ * To work on styling for specific stages, scroll down to line ~325 and change DEV_STAGE:
+ * 
+ * const DEV_STAGE: 1 | 2 | 3 | null = 1  // Change this number!
+ * 
+ * Stage 1: Initial landing page with centered prompt
+ * Stage 2: Processing state (prompt moved up, showing "Understanding your request...")
+ * Stage 3: Chat interface with messages and workflow visualization
+ * null: Normal flow with animations (default)
+ */
+
 import { Send, SendHorizontal } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 
@@ -28,17 +42,21 @@ interface LangChainMessage {
 
 const LandingInput = ({
   onSubmit,
+  isProcessing,
+  submittedPrompt,
 }: {
   onSubmit: (message: string) => void
+  isProcessing: boolean
+  submittedPrompt: string
 }) => {
   const [input, setInput] = useState("")
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (inputRef.current) {
+    if (inputRef.current && !isProcessing) {
       inputRef.current.focus()
     }
-  }, [])
+  }, [isProcessing])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,32 +67,93 @@ const LandingInput = ({
   }
 
   return (
-    <div className="id flex h-[calc(100vh-70px)] flex-col items-center justify-center bg-gradient-to-tr from-codemod-lime-400/40 via-white to-codemod-lime-400/40 p-4">
-      <h1 className="mb-7 text-5xl font-bold">What do you want to build?</h1>
-      <h2 className="mb-12 text-lg">Prompt, run, edit, and deploy changes.</h2>
-      <div className="rounded-2xl border border-codemod-lime-500/50 bg-white p-2 shadow-2xl">
+    <div className="relative h-[calc(100vh-70px)] overflow-hidden bg-gradient-to-tr from-codemod-lime-400/40 via-white to-codemod-lime-400/40">
+      {/* Heading Section */}
+      <AnimatePresence>
+        {!isProcessing && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+            className="absolute inset-x-0 top-[30%] flex -translate-y-1/2 flex-col items-center"
+          >
+            <h1 className="mb-7 text-5xl font-bold">What do you want to build?</h1>
+            <h2 className="mb-12 text-lg">Prompt, run, edit, and deploy changes.</h2>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Input Box */}
+      <motion.div
+        initial={{ x: "-50%", y: "-50%", top: "65%", opacity: 0 }}
+        animate={{
+          x: "-50%",
+          y: "-50%",
+          top: isProcessing ? "25%" : "65%",
+          opacity: 1,
+        }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.6, ease: "easeInOut", delay: 0 }}
+        whileHover={{ y: "-52%" }}
+        className="absolute left-1/2 z-10 rounded-2xl border border-codemod-lime-500/50 bg-white p-2 shadow-2xl"
+      >
         <form onSubmit={handleSubmit} className="relative w-96">
-          {/* focus-within:scale-105" */}
           <Textarea
             ref={inputRef}
-            value={input}
+            value={isProcessing ? submittedPrompt : input}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               setInput(e.target.value)
             }
             placeholder="Ask Codemod to build..."
             className="min-h-48 resize-none pb-12 pr-12 text-lg"
+            disabled={isProcessing}
           />
-          <Button
-            type="submit"
-            size="sm"
-            className="group absolute bottom-2 right-2 flex items-center gap-2 "
-            disabled={!input.trim()}
-          >
-            Start building
-            <SendHorizontal className="size-4 text-white transition-transform duration-100 group-hover:translate-x-0.5" />
-          </Button>
+          {!isProcessing && (
+            <Button
+              type="submit"
+              size="sm"
+              className="group absolute bottom-2 right-2 flex items-center gap-2 "
+              disabled={!input.trim()}
+            >
+              Start building
+              <SendHorizontal className="size-4 text-white transition-transform duration-100 group-hover:translate-x-0.5" />
+            </Button>
+          )}
         </form>
-      </div>
+      </motion.div>
+
+      {/* Processing Message */}
+      <AnimatePresence>
+        {isProcessing && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 flex-col items-center"
+          >
+            <div className="max-w-2xl rounded-lg border border-codemod-lime-500/30 bg-white p-6 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="size-6 rounded-full border-2 border-codemod-lime-500 border-t-transparent"
+                  />
+                </div>
+                <div>
+                  <h3 className="mb-2 text-lg font-semibold">Understanding your request...</h3>
+                  <p className="text-gray-600">
+                    Based on your request, you&apos;ve asked me to create a new project. 
+                    I&apos;m analyzing your requirements and setting up the workflow structure.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -117,11 +196,13 @@ const ChatInterface = ({
   isLoading,
   onSendMessage,
   workflow,
+  isVisible,
 }: {
   messages: LangChainMessage[]
   isLoading: boolean
   onSendMessage: (message: string) => void
   workflow: Workflow | null
+  isVisible: boolean
 }) => {
   const [input, setInput] = useState("")
   const [showMobileView, setShowMobileView] = useState<"chat" | "workflow">(
@@ -154,7 +235,12 @@ const ChatInterface = ({
   const rightPaneTranslate = hasWorkflow ? "0%" : "5%"
 
   return (
-    <div className="h-[calc(100vh-70px)] w-full px-0 py-2 md:px-4">
+    <motion.div
+      initial={{ y: "100%", opacity: 0 }}
+      animate={isVisible ? { y: 0, opacity: 1 } : { y: "100%", opacity: 0 }}
+      transition={{ duration: 0.7, ease: "easeInOut", delay: 0.2 }}
+      className="h-[calc(100vh-70px)] w-full px-0 py-2 md:px-4"
+    >
       {/* Mobile Toggle - Only on mobile */}
       <div className="mb-2 flex md:hidden">
         <Button
@@ -185,12 +271,6 @@ const ChatInterface = ({
             showMobileView === "workflow" ? "hidden md:block" : "block"
           )}
         >
-          {/* <Card className="flex size-full flex-col overflow-hidden"> */}
-            {/* <CardHeader className="pb-0">
-              <CardTitle>Chat</CardTitle>
-            </CardHeader> */}
-            {/* <CardContent className="flex flex-1 flex-col overflow-hidden pb-0"> */}
-              {/* Messages Container */}
               <div className="flex-1 overflow-y-auto px-2">
                 {messages.map((message, i) => (
                   <Message key={i} message={message} index={i} />
@@ -218,8 +298,7 @@ const ChatInterface = ({
                   </Button>
                 </div>
               </form>
-            {/* </CardContent> */}
-          {/* </Card> */}
+
         </div>
 
         {/* Right pane - Workflow visualization */}
@@ -244,22 +323,120 @@ const ChatInterface = ({
           </Card>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 export default function IndexPage() {
+  // ============================================================
+  // DEVELOPMENT MODE: Set this to control which stage to display
+  // Stage 1: Initial landing page
+  // Stage 2: Processing (prompt submitted, showing processing message)
+  // Stage 3: Chat interface visible
+  // Set to null for normal flow
+  const DEV_STAGE: 1 | 2 | 3 | null = null;
+  // ============================================================
+
   const [messages, setMessages] = useState<LangChainMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [chatStarted, setChatStarted] = useState(false)
+  const [chatStarted, setChatStarted] = useState(DEV_STAGE === 3)
+  const [isProcessing, setIsProcessing] = useState(DEV_STAGE === 2)
+  const [showChatInterface, setShowChatInterface] = useState(DEV_STAGE === 3)
+  const [submittedPrompt, setSubmittedPrompt] = useState(
+    DEV_STAGE === 2 || DEV_STAGE === 3 
+      ? "Build me a todo app with React and TypeScript" 
+      : ""
+  )
   const [workflow, setWorkflow] = useState<Workflow | null>(null)
   const _threadId = useRef(uuid())
 
-  const handleSendMessage = async (content: string) => {
-    // Set chat as started
-    if (!chatStarted) {
-      setChatStarted(true)
+  // Set up mock data for dev stages
+  useEffect(() => {
+    if (DEV_STAGE === 3) {
+      // Add some mock messages for stage 3
+      const mockMessages: LangChainMessage[] = [
+        {
+          id: uuid(),
+          type: "human",
+          content: "Build me a todo app with React and TypeScript",
+        },
+        {
+          id: uuid(),
+          type: "ai",
+          content: "I've created a workflow based on your request. You can see it visualized on the right.",
+        },
+      ]
+      setMessages(mockMessages)
+
+      // Set mock workflow
+      const mockWorkflow: Workflow = {
+        version: "1.0",
+        nodes: [
+          {
+            id: "start",
+            name: "Start Node",
+            type: "automatic",
+            steps: [],
+          },
+          {
+            id: "process",
+            name: "Process Data",
+            type: "automatic",
+            depends_on: ["start"],
+            steps: [],
+          },
+          {
+            id: "decision",
+            name: "Make Decision",
+            type: "manual",
+            depends_on: ["process"],
+            steps: [],
+          },
+          {
+            id: "success",
+            name: "Success Path",
+            type: "automatic",
+            depends_on: ["decision"],
+            steps: [],
+          },
+          {
+            id: "failure",
+            name: "Failure Path",
+            type: "automatic",
+            depends_on: ["decision"],
+            steps: [],
+          },
+          {
+            id: "end",
+            name: "End Node",
+            type: "automatic",
+            depends_on: ["success", "failure"],
+            steps: [],
+          },
+        ],
+      }
+      setWorkflow(mockWorkflow)
     }
+  }, [DEV_STAGE])
+
+  const handleSendMessage = async (content: string) => {
+    // Skip animation flow if in dev stage mode
+    if (DEV_STAGE !== null) {
+      return
+    }
+
+    // Store the submitted prompt
+    setSubmittedPrompt(content)
+    
+    // Start processing animation
+    setIsProcessing(true)
+
+    // Wait for processing message to show (3 seconds)
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+
+    // Set chat as started and show chat interface
+    setChatStarted(true)
+    setShowChatInterface(true)
 
     // Add user message to chat
     const userMessage: LangChainMessage = {
@@ -352,18 +529,33 @@ export default function IndexPage() {
   }
 
   return (
-    <section>
-      {!chatStarted ? (
-        <LandingInput onSubmit={handleSendMessage} />
-      ) : (
-        <div>
-          <ChatInterface
-            messages={messages}
-            isLoading={isLoading}
-            onSendMessage={handleSendMessage}
-            workflow={workflow}
-          />
-        </div>
+    <section className="relative">
+      {/* Landing screen with processing state */}
+      <AnimatePresence>
+        {!chatStarted && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <LandingInput 
+              onSubmit={handleSendMessage} 
+              isProcessing={isProcessing}
+              submittedPrompt={submittedPrompt}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Chat Interface - slides up from bottom */}
+      {chatStarted && (
+        <ChatInterface
+          messages={messages}
+          isLoading={isLoading}
+          onSendMessage={handleSendMessage}
+          workflow={workflow}
+          isVisible={showChatInterface}
+        />
       )}
     </section>
   )
